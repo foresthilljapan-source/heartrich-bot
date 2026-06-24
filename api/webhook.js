@@ -13,27 +13,34 @@ const supabase = createClient(
 
 const client = new line.Client(lineConfig);
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(200).json({ status: 'ok' });
   }
 
-  const signature = req.headers['x-line-signature'];
-  if (!line.validateSignature(JSON.stringify(req.body), lineConfig.channelSecret, signature)) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-
-  res.status(200).json({ status: 'ok' });
-
-  const events = req.body.events || [];
-  for (const event of events) {
-    try {
-      await handleEvent(event);
-    } catch (err) {
-      console.error('Error:', err);
+  try {
+    const signature = req.headers['x-line-signature'];
+    const body = JSON.stringify(req.body);
+    
+    if (!line.validateSignature(body, lineConfig.channelSecret, signature)) {
+      return res.status(401).json({ error: 'Invalid signature' });
     }
+
+    res.status(200).json({ status: 'ok' });
+
+    const events = req.body.events || [];
+    for (const event of events) {
+      try {
+        await handleEvent(event);
+      } catch (err) {
+        console.error('handleEvent error:', err);
+      }
+    }
+  } catch (err) {
+    console.error('handler error:', err);
+    return res.status(500).json({ error: err.message });
   }
-}
+};
 
 async function handleEvent(event) {
   const userId = event.source.userId;
