@@ -33,13 +33,11 @@ async function handleEvent(event) {
 
   const userId = event.source.userId;
 
-  // フォロー時
   if (event.type === 'follow') {
     await client.replyMessage(event.replyToken, buildMainMenu());
     return;
   }
 
-  // 職員認証
   const staff = await getStaff(userId);
   if (!staff) {
     await client.replyMessage(event.replyToken, {
@@ -49,7 +47,6 @@ async function handleEvent(event) {
     return;
   }
 
-  // テキストメッセージ
   if (event.type === 'message' && event.message.type === 'text') {
     const text = event.message.text;
 
@@ -85,16 +82,13 @@ async function handleEvent(event) {
       return;
     }
 
-    // デフォルト
     await client.replyMessage(event.replyToken, buildMainMenu());
     return;
   }
 
-  // ポストバック
   if (event.type === 'postback') {
     const data = event.postback.data;
 
-    // 送迎区分選択
     if (data.startsWith('direction_')) {
       const direction = data.replace('direction_', '');
 
@@ -130,69 +124,6 @@ async function handleEvent(event) {
       return;
     }
 
-    // 車両選択
-    if (data.startsWith('vehicle_')) {
-      const parts = data.split('_');
-      const direction = parts[1];
-      const vehicleId = parts[2];
-      const lastMeter = parts[3];
-      const vehicleName = parts[4];
-
-      const { data: users } = await supabase
-        .from('users')
-        .select('*')
-        .eq('office_id', staff.office_id)
-        .eq('is_active', true)
-        .eq('is_suspended', false);
-
-      if (!users || users.length === 0) {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '利用者が登録されていません。管理者にお問い合わせください。'
-        });
-        return;
-      }
-
-      const actions = users.slice(0, 3).map(u => ({
-        type: 'postback',
-        label: u.name,
-        data: `selectuser_${direction}_${vehicleId}_${lastMeter}_${vehicleName}_${u.id}_${u.name}`
-      }));
-
-      actions.push({
-        type: 'postback',
-        label: '選択完了→メーター入力',
-        data: `meterinput_${direction}_${vehicleId}_${lastMeter}_${vehicleName}_none_なし`
-      });
-
-      await client.replyMessage(event.replyToken, {
-        type: 'template',
-        altText: '乗車した利用者を選択してください',
-        template: {
-          type: 'buttons',
-          text: `【${direction}】【${vehicleName}】\n乗車した利用者を選択してください`,
-          actions
-        }
-      });
-      return;
-    }
-
-    // メーター入力案内
-    if (data.startsWith('meterinput_')) {
-      const parts = data.split('_');
-      const direction = parts[1];
-      const vehicleId = parts[2];
-      const lastMeter = parts[3];
-      const vehicleName = parts[4];
-
-      await client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `【送迎記録入力】\n区分：${direction}\n車両：${vehicleName}\n\n終了メーターを数字で入力してください。\n前回終了：${lastMeter}km\n\n例：123456\n\n※入力後に確認画面が表示されます\n※データ：${direction},${vehicleId},${lastMeter},${vehicleName}`
-      });
-      return;
-    }
-
-    // メインメニューに戻る
     await client.replyMessage(event.replyToken, buildMainMenu());
   }
 }
@@ -226,6 +157,11 @@ async function getStaff(lineUserId) {
 
 app.get('/', (req, res) => {
   res.json({ status: 'ハートリッチ現場管理ボット稼働中' });
+});
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
 });
 
 module.exports = app;
